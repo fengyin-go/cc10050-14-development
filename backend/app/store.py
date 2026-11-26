@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.recon_seed import CHANGE_EVENTS, RECON_SEED, RULE_ALERT_10
 from app.seed import SEED_ROWS
 
 
@@ -14,6 +15,14 @@ class Store:
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
+        # 告警核对扩展：真实变价事件与带版本历史的规则追加到既有模块，
+        # 告警缺项单、补算回执作为独立表登记。
+        self._tables.setdefault("change_history", []).extend(
+            dict(row) for row in CHANGE_EVENTS
+        )
+        self._tables.setdefault("price_alert", []).append(dict(RULE_ALERT_10))
+        for name, rows in RECON_SEED.items():
+            self._tables[name] = [dict(row) for row in rows]
 
     def module_names(self) -> list[str]:
         return sorted(self._tables)

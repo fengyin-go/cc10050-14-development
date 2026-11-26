@@ -79,5 +79,28 @@ npm run dev
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
 
+## 告警核对链路（变价历史 × 规则版本）
+
+针对「已确认变价与告警规则版本核对」的独立领域，不占用通用 CRUD 骨架：
+
+| 页面 | 路由 | 作用 |
+| --- | --- | --- |
+| 流水规则版本核对 | `/change_history_recon` | 已确认变价的规则版本、价格来源、价格版本链与回执，支持同一变价更正 |
+| 告警缺项单 | `/alert_gap` | 列出已处理/待处理缺口（区分「规则升级」「同一变价更正」），勾选后仅对选中商品与变价事件补算 |
+| 告警补算回执 | `/alert_receipts` | 按规则版本回溯每次补算消费的价格、差值、判定理由与处理回执 |
+
+后端接口（`backend/app/routers/reconciliation.py`，服务在 `services/reconciliation.py`）：
+
+- `GET  /api/reconciliation/change-events` 核对视图
+- `GET  /api/reconciliation/gaps`、`POST /api/reconciliation/gaps/recalculate`
+- `GET  /api/reconciliation/receipts?rule_version=`
+- `POST /api/reconciliation/change-events/{id}/corrections`（同一变价更正，旧证据保留）
+- `POST /api/reconciliation/rules/{code}/upgrade`、`GET .../versions`
+
+关键约束：补算严格限定勾选的缺口，同规则的其他商品不会被捎带；
+同一缺口 × 规则版本 × 价格版本只确认一次（幂等键在回执 `idempotent_key`）；
+变价更正只追加价格版本并把待处理缺口标记为证据冲突，历史回执仍按当时版本可查。
+H34~H37 演示数据与 AR-10 规则版本链见 `backend/app/recon_seed.py`。
+
 领域：数据工程
 子方向：数据采集、爬虫与RPA
